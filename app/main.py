@@ -1,53 +1,56 @@
 import asyncio
-import time
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from app.core.config.model import settings
+from app.core.llm.agent import OllamaAgent
+from app.core.llm.tools import TOOLS
+from app.core.llm.tools.skills import simplify_legal_doc
+
 app = FastAPI(title="Capstone App")
 
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+TOOL_FUNCTIONS: dict[str, Callable[..., object]] = {
+    "simplify_legal_doc": simplify_legal_doc
+}
 
-uploaded_files: list[str] = []
+agent = OllamaAgent(
+    model=settings.name,
+    tools=TOOLS,
+    tool_functions=TOOL_FUNCTIONS,
+)
 
 
 class ChatRequest(BaseModel):
     message: str
 
 
-MOCK_RESPONSE = (
-    "This is a mocked streaming response. "
-    "In the future, this will be powered by an LLM "
-    "that can analyze your uploaded PDF documents. "
-    "For now, it simply echoes back a simulated reply "
-    "to demonstrate the streaming chat functionality."
-)
-
-
-@app.post("/upload")
-async def upload(file: UploadFile = File(...)):
-    dest = UPLOAD_DIR / file.filename
-    content = await file.read()
-    dest.write_bytes(content)
-    uploaded_files.append(file.filename)
-    return {
-        "filename": file.filename,
-        "size": len(content),
-        "uploaded_files": uploaded_files,
-    }
-
-
 @app.post("/chat")
-async def chat(req: ChatRequest):
-    async def stream():
-        words = MOCK_RESPONSE.split(" ")
-        for word in words:
-            yield f"data: {word} \n\n"
-            await asyncio.sleep(0.06)
+async def chat(req: ChatRequest) -> StreamingResponse:
+    async def stream() -> AsyncIterator[str]:
+        queue: asyncio.Queue[str | None] = asyncio.Queue()
+
+        def produce() -> None:
+            try:
+                for token in agent.run_stream(req.message):
+                    queue.put_nowait(token)
+            except Exception as exc:
+                queue.put_nowait(f"\n[Error] {exc}")
+            finally:
+                queue.put_nowait(None)
+
+        loop = asyncio.get_event_loop()
+        task = loop.run_in_executor(None, produce)
+        while True:
+            token = await queue.get()
+            if token is None:
+                break
+            yield f"data: {token} \n\n"
+        await task
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(stream(), media_type="text/event-stream")

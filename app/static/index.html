@@ -127,32 +127,6 @@
                 align-items: flex-end;
             }
 
-            #upload-btn {
-                background: none;
-                border: 1px solid var(--border);
-                color: var(--text-muted);
-                border-radius: 8px;
-                width: 40px;
-                height: 40px;
-                cursor: pointer;
-                font-size: 20px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-shrink: 0;
-                transition:
-                    border-color 0.15s,
-                    color 0.15s;
-            }
-            #upload-btn:hover {
-                border-color: var(--text-muted);
-                color: var(--text);
-            }
-
-            #file-input {
-                display: none;
-            }
-
             #input-box {
                 flex: 1;
                 background: var(--surface);
@@ -198,15 +172,6 @@
                 height: 18px;
             }
 
-            #upload-status {
-                max-width: 768px;
-                margin: 8px auto 0;
-                font-size: 13px;
-                color: var(--text-muted);
-                min-height: 20px;
-                padding: 0 24px;
-            }
-
             .empty-state {
                 flex: 1;
                 display: flex;
@@ -231,15 +196,12 @@
         <div id="chat-container">
             <div class="empty-state" id="empty-state">
                 <div class="icon">&#x1F4C4;</div>
-                <p>Upload a PDF and start chatting.</p>
+                <p>Start chatting. I can help simplify legal documents.</p>
             </div>
         </div>
 
         <div id="input-area">
-            <div id="upload-status"></div>
             <div id="input-row">
-                <button id="upload-btn" title="Upload PDF">&#x2B;</button>
-                <input type="file" id="file-input" accept=".pdf" />
                 <textarea
                     id="input-box"
                     rows="1"
@@ -259,9 +221,6 @@
             const emptyState = document.getElementById("empty-state");
             const inputBox = document.getElementById("input-box");
             const sendBtn = document.getElementById("send-btn");
-            const uploadBtn = document.getElementById("upload-btn");
-            const fileInput = document.getElementById("file-input");
-            const uploadStatus = document.getElementById("upload-status");
 
             function scrollToBottom() {
                 chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -306,27 +265,6 @@
             });
 
             sendBtn.addEventListener("click", sendMessage);
-
-            uploadBtn.addEventListener("click", () => fileInput.click());
-
-            fileInput.addEventListener("change", async () => {
-                const file = fileInput.files[0];
-                if (!file) return;
-                uploadStatus.textContent = `Uploading ${file.name}...`;
-                const fd = new FormData();
-                fd.append("file", file);
-                try {
-                    const res = await fetch("/upload", {
-                        method: "POST",
-                        body: fd,
-                    });
-                    const data = await res.json();
-                    uploadStatus.textContent = `Uploaded ${data.filename} (${(data.size / 1024).toFixed(1)} KB)`;
-                } catch {
-                    uploadStatus.textContent = "Upload failed.";
-                }
-                fileInput.value = "";
-            });
 
             async function sendMessage() {
                 const text = inputBox.value.trim();
