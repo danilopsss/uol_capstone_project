@@ -18,10 +18,7 @@ class CapstoneLib:
     }
 
     @classmethod
-    def load_parquet(cls, parquet_name: str):
-
-        parquet_path = f"../parquet_files/{parquet_name}"
-
+    def load_parquet(cls, parquet_path: str):
         if os.path.exists(parquet_path):
             return pl.read_parquet(parquet_path)
 
