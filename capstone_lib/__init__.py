@@ -23,7 +23,6 @@ class CapstoneLib:
 
     CLAUSE_PIPE = "capstone_clause_extractor"
     CLAUSE_EXT = "clauses"
-    PARQUET_PATH = "parquet_files/0002_cuad_dataset.parquet"
 
     @classmethod
     def load_parquet(cls, parquet_path: str):
@@ -34,37 +33,37 @@ class CapstoneLib:
         )
 
     @classmethod
-    def apply_metrics(cls, df: polars.DataFrame):
+    def apply_metrics(cls, df: polars.DataFrame, column: str = "sentences"):
         cuad_metrics =  df.with_columns(
-            polars.col("sentences")
+            polars.col(column)
             .map_elements(
                 lambda x: textstat.flesch_reading_ease(x),
                 return_dtype=polars.Float64,
             )
             .alias("fre"),
         
-            polars.col("sentences")
+            polars.col(column)
             .map_elements(
                 lambda x: textstat.flesch_kincaid_grade(x),
                 return_dtype=polars.Float64,
             )
             .alias("fkgl"),
         
-            polars.col("sentences")
+            polars.col(column)
             .map_elements(
                 lambda x: textstat.gunning_fog(x),
                 return_dtype=polars.Float64,
             )
             .alias("fog"),
         
-            polars.col("sentences")
+            polars.col(column)
             .map_elements(
                 lambda x: textstat.dale_chall_readability_score(x),
                 return_dtype=polars.Float64,
             )
             .alias("dale_chall"),
         
-            polars.col("sentences")
+            polars.col(column)
             .map_elements(
                 lambda x: textstat.lix(x),
                 return_dtype=polars.Float64,
