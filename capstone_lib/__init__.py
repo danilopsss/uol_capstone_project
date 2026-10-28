@@ -6,23 +6,24 @@ import ollama
 import polars
 import spacy
 import textstat
+import requests
+
+from functools import lru_cache
+from pathlib import Path
 from spacy.language import Language
 from spacy.tokens import Doc
 
 
 class CapstoneLib:
 
-    CLAUSE_DEPS = {
-        "ROOT",
-        "ccomp",
-        "xcomp",
-        "advcl",
-        "relcl",
-        "conj",
-    }
-
+    PROJ_ROOT = "/workspace"
+    
+    CLAUSE_DEPS = {"ROOT", "ccomp" ,"xcomp" ,"advcl" ,"relcl" ,"conj"}
     CLAUSE_PIPE = "capstone_clause_extractor"
     CLAUSE_EXT = "clauses"
+
+    LLM_TEMP = 0.7
+    OLLAMA_URL = "http://localhost:11434/api/chat"
 
     @classmethod
     def load_parquet(cls, parquet_path: str):
@@ -82,3 +83,29 @@ class CapstoneLib:
                 ).alias("complexity_score")
             )
         )
+
+    @classmethod
+    @lru_cache
+    def get_system_prompt(cls):
+        rw_path = Path(cls.PROJ_ROOT).rglob("**/*/clause_simplifier.md")
+        if path := next(rw_path, None):
+            with open(path, mode="r") as prompt:
+                return prompt.read()
+        raise FileNotFoundError("Prompt not found")
+
+    @classmethod
+    def llm_call(cls, message: str, model: str = "gemma4"):
+        system_prompt = cls.get_system_prompt()
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message}
+        ]
+        resp = requests.post(cls.OLLAMA_URL, json={
+            "model": model,
+            "messages": messages,
+            "stream": False,
+            "options": {"temperature": cls.LLM_TEMP},
+        })
+        if resp.ok:
+            resp_json = resp.json()
+            return resp_json.get("message")
