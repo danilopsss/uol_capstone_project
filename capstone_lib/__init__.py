@@ -87,9 +87,8 @@ class CapstoneLib:
     @classmethod
     @lru_cache
     def get_system_prompt(cls, prompt_path: str):
-        if path := next(prompt_path, None):
-            with open(path, mode="r") as prompt:
-                return prompt.read()
+        with open(prompt_path, mode="r") as prompt:
+            return prompt.read()
         raise FileNotFoundError("Prompt not found")
 
     @classmethod
@@ -110,7 +109,7 @@ class CapstoneLib:
             return resp_json.get("message")
 
     @classmethod
-    def llm_call_with_progress_bar(tqdm_bar, sentence: str, prompt_path: str):
+    def llm_call_with_progress_bar(cls, tqdm_bar, sentence: str, prompt_path: str):
         result = cls.llm_call(sentence, prompt_path)
         tqdm_bar.update(1)
         return result.get("content")
