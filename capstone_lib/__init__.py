@@ -86,16 +86,15 @@ class CapstoneLib:
 
     @classmethod
     @lru_cache
-    def get_system_prompt(cls):
-        rw_path = Path(cls.PROJ_ROOT).rglob("**/*/clause_simplifier.md")
-        if path := next(rw_path, None):
+    def get_system_prompt(cls, prompt_path: str):
+        if path := next(prompt_path, None):
             with open(path, mode="r") as prompt:
                 return prompt.read()
         raise FileNotFoundError("Prompt not found")
 
     @classmethod
-    def llm_call(cls, message: str, model: str = "gemma4"):
-        system_prompt = cls.get_system_prompt()
+    def llm_call(cls, message: str, prompt_path: str, model: str = "gemma4"):
+        system_prompt = cls.get_system_prompt(prompt_path)
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": message}
@@ -109,3 +108,9 @@ class CapstoneLib:
         if resp.ok:
             resp_json = resp.json()
             return resp_json.get("message")
+
+    @classmethod
+    def llm_call_with_progress_bar(tqdm_bar, sentence: str, prompt_path: str):
+        result = cls.llm_call(sentence, prompt_path)
+        tqdm_bar.update(1)
+        return result.get("content")
